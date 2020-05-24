@@ -32,7 +32,8 @@ struct Behaviour : public Component{
         //   Camera::getCurrentCamera().fieldOfView += 0.1f;
         //     Camera::getCurrentCamera().getTransform().rotateLocal(Vector(0, 0, 0.01));
         //     getGameObject().getTransform().rotateLocal(Vector(0, 0.03f, 0));
-        char a; // getch();
+        char a = getch();
+        std::cin >> a;
         switch (a) {
             case 'w':
                 getGameObject().getTransform().moveLocal(0,0,1);
@@ -77,7 +78,40 @@ struct S : public Shader {
     }
 };
 
+
+struct S1 : public Shader {
+    Vertex vertex(Vertex &vertex) override{
+        float d = Vector::dot(vertex.normal.getNormalized(), Vector(1, 0, 0));
+        if(d < 0) d = 0;
+        if(d > 0.7f) d = 0.7f;
+        vertex.color *= d * d + 0.3f;
+        vertex.position = Camera::transformWorldToCameraSpace(vertex.position);
+        return vertex;
+    }
+    
+    Color fragment(Vertex &vertex) override{
+        return vertex.color;;
+    }
+};
+
+struct S1T : public Shader {
+    Vertex vertex(Vertex &vertex) override{
+        vertex.position = Camera::transformWorldToCameraSpace(vertex.position);
+        return vertex;
+    }
+
+    Color fragment(Vertex &vertex) override{
+        return vertex.color;;
+    }
+    
+    bool isTransparent() override{
+        return true;
+    }
+};
+
 S s;
+S1 s1;
+S1T s1t;
 
 
 struct Scene1 : public Scene{
@@ -89,13 +123,13 @@ struct Scene1 : public Scene{
         
         g.getTransform().rotateLocal(-3.1415/2, 0, 0);
         g1.getTransform().rotateLocal(-3.1415/2, 0, 0);
-   
+        
         g.getTransform().parent = &ship.getTransform();
         g1.getTransform().parent = &ship.getTransform();
         
         g.getTransform().moveLocal(0, -0.7, 0);
-           g1.getTransform().moveLocal(0, -0.7, 0);
-           
+        g1.getTransform().moveLocal(0, -0.7, 0);
+        
         
         auto& m = g.addComponent<Mesh>();
         //        mesh.normals = {
@@ -154,7 +188,7 @@ struct Scene1 : public Scene{
         m1.normals = m.normals;
         m1.uv = m.uv;
         g1.getTransform().setLocalScale(Vector(-1, 1, 1));
-       // g.getTransform().setLocalScale(Vector(0, 1, 1));
+        // g.getTransform().setLocalScale(Vector(0, 1, 1));
         //  g1.getTransform().moveLocal(2, 0, 0);
     }
 };
@@ -205,12 +239,88 @@ struct Xterm256Console: public Display{
     }
 };
 
+struct CubeRotation : Behaviour{
+    
+    void onUpdate() override{
+        getGameObject().getTransform().rotateLocal(Vector(0, M_PI / 10.0f, 0));
+    }
+};
+
+struct SceneWithCube : Scene{
+    SceneWithCube(){
+        auto& cube = createGameObject("Cube");
+        auto& cube1 = createGameObject("Cube1");
+        auto& mesh = cube.addComponent<Mesh>();
+        auto& mesh1 = cube1.addComponent<Mesh>();
+        mesh.normals = {
+            Vector(-1.0, -1.0,  1.0),
+            Vector( 1.0, -1.0,  1.0),
+            Vector( 1.0,  1.0,  1.0),
+            Vector(-1.0,  1.0,  1.0),
+            Vector(-1.0, -1.0, -1.0),
+            Vector( 1.0, -1.0, -1.0),
+            Vector( 1.0,  1.0, -1.0),
+            Vector(-1.0,  1.0, -1.0)
+        };
+        mesh1.normals = mesh.normals;
+        mesh.vertices = {
+            Vector(-1.0, -1.0,  1.0),
+            Vector( 1.0, -1.0,  1.0),
+            Vector( 1.0,  1.0,  1.0),
+            Vector(-1.0,  1.0,  1.0),
+            Vector(-1.0, -1.0, -1.0),
+            Vector( 1.0, -1.0, -1.0),
+            Vector( 1.0,  1.0, -1.0),
+            Vector(-1.0,  1.0, -1.0)
+        };
+        mesh1.vertices = mesh.vertices;
+        mesh.indices = {
+            // front
+            0, 1, 2,
+            2, 3, 0,
+            // right
+            1, 5, 6,
+            6, 2, 1,
+            // back
+            7, 6, 5,
+            5, 4, 7,
+            // left
+            4, 0, 3,
+            3, 7, 4,
+            // bottom
+            4, 5, 1,
+            1, 0, 4,
+            // top
+            3, 2, 6,
+            6, 7, 3
+        };
+        mesh1.colors = {
+            Color(255, 0, 0, 128),
+            Color(0, 255, 0, 128),
+            Color(0, 0, 255, 128),
+            Color(255, 255, 255, 128),
+            Color(0, 255, 255, 128),
+            Color(255, 0, 255, 128),
+            Color(255, 255, 0, 128),
+        };
+        mesh1.indices = mesh.indices;
+        mesh.setShader(&s1);
+        mesh1.setShader(&s1t);
+        cube1.getTransform().parent = &cube.getTransform();
+        cube1.getTransform().moveLocal(Vector(2, 0, 0));
+        cube1.getTransform().setLocalScale(0.75f);
+        
+        cube.addComponent<CubeRotation>();
+    }
+};
+
 int main(int argc, const char* argv[]) {
-    float szie = 1;
-    CommonConsoleOutput d(60 * szie, 20 * szie);
+    float szie = 5;
+    Xterm256Console d(60 * szie, 20 * szie);
     Camera cam(1);
-    cam.getTransform().moveLocal(0, -1, -5);
+    cam.getTransform().moveLocal(0, 0, -5);
+
     Engine e(d, 10.f);
-    e.start<Scene1>();
+    e.start<SceneWithCube>();
     return 0;
 }
